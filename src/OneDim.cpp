@@ -20,15 +20,19 @@ namespace locomotion_viewer {
                                   const double & dashed_line,
                                   const double & decimation_factor,
                                   const std::string &ns) {
+        if (eigen_path_x.size() != eigen_path_y.size() || eigen_path_x.size() != eigen_path_z.size()) {
+            throw std::invalid_argument("The sizes for x, y, and z need to be equal");
+        }
 
       if(dashed_line){
-        publishDashedEigenPath(eigen_path_x, eigen_path_y, eigen_path_z,  color, scale, decimation_factor);
+        return publishDashedEigenPath(eigen_path_x, eigen_path_y, eigen_path_z,  color, scale, decimation_factor);
       }else{
-        geometry_msgs::Point temp;
         std::vector<geometry_msgs::Point> trajectory;
         int points_num = eigen_path_x.rows();
+        trajectory.reserve(points_num);
 
-        for (std::size_t i = 0; i < points_num; ++i) {
+        geometry_msgs::Point temp;
+        for (int i = 0; i < points_num; ++i) {
           temp.x = eigen_path_x(i);
           temp.y = eigen_path_y(i);
           temp.z = eigen_path_z(i);
@@ -37,7 +41,7 @@ namespace locomotion_viewer {
         }
         //publishSphere(first, rviz_visual_tools::RED, rviz_visual_tools::XXXXLARGE, "initial_point");
         //publishSpheres(trajectory, color, rviz_visual_tools::XXXLARGE, "intermediate_points");
-        publishPath(trajectory, color, scale, ns);
+        return publishPath(trajectory, color, scale, ns);
       }
     }
 
@@ -75,6 +79,7 @@ namespace locomotion_viewer {
         publishSphere(first, color, points_size, "initial_point");
         publishSpheres(trajectory, color, points_size, "intermediate_points");
         publishPath(trajectory, color, scale, ns);
+        return true;
     }
 
     bool OneDim::publishDashedLine(Eigen::Vector3d &startingPoint,
@@ -164,32 +169,35 @@ namespace locomotion_viewer {
                                         rviz_visual_tools::scales lineScale,
                                         const double & decimation_factor,
                                         const std::string &ns) {
-
-        Eigen::Vector3d current, next;
-        int points_num = eigen_path_x.rows();
+        if (eigen_path_x.size() != eigen_path_y.size() || eigen_path_x.size() != eigen_path_z.size()) {
+            throw std::invalid_argument("The sizes for x, y, and z need to be equal");
+        }
+        const int points_num = eigen_path_x.rows();
 
         int points_increment = 1;
         if((decimation_factor>0.0)&&(decimation_factor<=1.0)){
-          points_increment = floor(1.0/decimation_factor*100.0)/100;
+          points_increment = std::floor(1.0/decimation_factor*100.0)/100;
         }else{
           std::cout<<"[OneDim::publishDashedEigenPath] Warning: the decimation factor ("<<decimation_factor<<") is out of scale."<<std::endl;
         }
 
-        for (std::size_t i = 0; i < points_num - points_increment; i+=points_increment) {
-            current.setZero();
-            next.setZero();
-            current(0) = eigen_path_x(i);
-            current(1) = eigen_path_y(i);
-            current(2) = eigen_path_z(i);
+        Eigen::Vector3d current, next;
+        for (int i = 0; i < points_num - points_increment; i+=points_increment) {
+            if (i + points_increment >= eigen_path_x.size()) {
+                return true;  // Prevent crash from invalid memory access
+            }
 
-            next(0) = eigen_path_x(i + points_increment);
-            next(1) = eigen_path_y(i + points_increment);
-            next(2) = eigen_path_z(i + points_increment);
+            current.x() = eigen_path_x(i);
+            current.y() = eigen_path_y(i);
+            current.z() = eigen_path_z(i);
+
+            next.x() = eigen_path_x(i + points_increment);
+            next.y() = eigen_path_y(i + points_increment);
+            next.z() = eigen_path_z(i + points_increment);
 
             publishDashedLine(current, next, lineColor, lineScale);
-
         }
-
+        return true;
     }
 
     bool OneDim::publishDashedEigenPath(Eigen::VectorXd &eigen_path_x,
@@ -200,24 +208,20 @@ namespace locomotion_viewer {
                                         rviz_visual_tools::scales lineScale,
                                         const std::string &ns) {
 
-        Eigen::Vector3d current, next;
         int points_num = eigen_path_x.rows();
 
+        Eigen::Vector3d current, next;
         for (std::size_t i = 0; i < points_num - 1; i++) {
-            current.setZero();
-            next.setZero();
-            current(0) = eigen_path_x(i);
-            current(1) = eigen_path_y(i);
-            current(2) = eigen_path_z(i);
+            current.x() = eigen_path_x(i);
+            current.y() = eigen_path_y(i);
+            current.z() = eigen_path_z(i);
 
-            next(0) = eigen_path_x(i + 1);
-            next(1) = eigen_path_y(i + 1);
-            next(2) = eigen_path_z(i + 1);
+            next.x() = eigen_path_x(i + 1);
+            next.y() = eigen_path_y(i + 1);
+            next.z() = eigen_path_z(i + 1);
 
             publishDashedLine(current, next, segmentsLength, lineColor, lineScale);
-
         }
-
+        return true;
     }
-
 }
